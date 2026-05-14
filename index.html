@@ -1,1 +1,1210 @@
+import { useState, useEffect, useRef } from "react";
 
+const NEON = "#00f0ff";
+const RED = "#ff2d55";
+const AMBER = "#ffaa00";
+const GREEN = "#00ff88";
+const PURPLE = "#b44dff";
+const DIM = "rgba(0,240,255,0.08)";
+
+const suspects = [
+  { id: "S-001", name: "Marcus Vane", age: 34, crime: "Armed Robbery", danger: "HIGH", status: "At Large", lastSeen: "Sector 7, Block 22", img: "MV", cases: 4 },
+  { id: "S-002", name: "Elena Korova", age: 28, crime: "Cybercrime", danger: "MED", status: "Monitored", lastSeen: "Sector 3, Online", img: "EK", cases: 7 },
+  { id: "S-003", name: "Danny Frost", age: 41, crime: "Drug Trafficking", danger: "HIGH", status: "Arrested", lastSeen: "Sector 12, Warehouse", img: "DF", cases: 11 },
+  { id: "S-004", name: "Yara Santos", age: 25, crime: "Vandalism", danger: "LOW", status: "Released", lastSeen: "Sector 5, Market", img: "YS", cases: 2 },
+  { id: "S-005", name: "Kohl Marz", age: 38, crime: "Assault", danger: "HIGH", status: "Wanted", lastSeen: "Sector 9, Docks", img: "KM", cases: 6 },
+];
+
+const crimeReports = [
+  { id: "CR-2045", type: "Robbery", sector: "Sector 7", time: "02:14 AM", threat: 87, status: "Active" },
+  { id: "CR-2044", type: "Assault", sector: "Sector 12", time: "11:52 PM", threat: 72, status: "Resolved" },
+  { id: "CR-2043", type: "Vandalism", sector: "Sector 3", time: "09:30 PM", threat: 35, status: "Pending" },
+  { id: "CR-2042", type: "Cybercrime", sector: "Sector 1", time: "06:15 PM", threat: 61, status: "Active" },
+  { id: "CR-2041", type: "Trespass", sector: "Sector 9", time: "04:00 PM", threat: 28, status: "Resolved" },
+];
+
+const alerts = [
+  { id: 1, msg: "Suspicious movement at Sector 7 — Camera 04", level: "HIGH", time: "00:42" },
+  { id: 2, msg: "Unregistered vehicle — Zone B Parking", level: "MED", time: "00:39" },
+  { id: 3, msg: "Facial match: Suspect S-001 detected near Sector 7", level: "HIGH", time: "00:35" },
+  { id: 4, msg: "SOS received — Citizen #4421, Sector 5", level: "CRIT", time: "00:31" },
+  { id: 5, msg: "AI Prediction: High-risk window — 01:00–03:00 AM", level: "MED", time: "00:28" },
+];
+
+const cctvFeeds = [
+  { id: "CAM-01", loc: "Sector 7 — Junction", status: "LIVE", alert: true },
+  { id: "CAM-02", loc: "Sector 3 — Market", status: "LIVE", alert: false },
+  { id: "CAM-03", loc: "Sector 12 — Warehouse", status: "OFFLINE", alert: false },
+  { id: "CAM-04", loc: "Sector 9 — Docks", status: "LIVE", alert: true },
+  { id: "CAM-05", loc: "Sector 1 — HQ", status: "LIVE", alert: false },
+  { id: "CAM-06", loc: "Sector 5 — Market", status: "LIVE", alert: false },
+];
+
+const monthlyData = [42, 58, 35, 70, 63, 89, 54, 77, 66, 91, 48, 55];
+const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const crimeTypes = [
+  { label: "Robbery", val: 28, color: RED },
+  { label: "Assault", val: 22, color: AMBER },
+  { label: "Cybercrime", val: 18, color: NEON },
+  { label: "Vandalism", val: 14, color: PURPLE },
+  { label: "Trespass", val: 12, color: GREEN },
+  { label: "Other", val: 6, color: "#aaa" },
+];
+
+const aiPredictions = [
+  { sector: "Sector 7", risk: 92, type: "Armed Robbery", window: "01:00–03:00 AM", confidence: 91 },
+  { sector: "Sector 12", risk: 78, type: "Drug Activity", window: "11:00 PM–01:00 AM", confidence: 84 },
+  { sector: "Sector 3", risk: 55, type: "Vandalism", window: "08:00–10:00 PM", confidence: 76 },
+  { sector: "Sector 9", risk: 71, type: "Smuggling", window: "03:00–05:00 AM", confidence: 88 },
+];
+
+const faceLog = [
+  { id: "FL-101", name: "Marcus Vane", match: 97, cam: "CAM-01", time: "00:42", status: "WANTED" },
+  { id: "FL-102", name: "Unknown Subject", match: 43, cam: "CAM-02", time: "00:31", status: "UNKNOWN" },
+  { id: "FL-103", name: "Elena Korova", match: 89, cam: "CAM-04", time: "00:18", status: "MONITORED" },
+];
+
+function useInterval(fn, ms) {
+  const ref = useRef(fn);
+  useEffect(() => { ref.current = fn; }, [fn]);
+  useEffect(() => {
+    const t = setInterval(() => ref.current(), ms);
+    return () => clearInterval(t);
+  }, [ms]);
+}
+
+function GlowBorder({ children, color = NEON, style = {} }) {
+  return (
+    <div style={{
+      border: `1px solid ${color}44`,
+      borderRadius: 12,
+      background: "rgba(0,0,0,0.7)",
+      boxShadow: `0 0 18px ${color}22, inset 0 0 12px rgba(0,0,0,0.5)`,
+      backdropFilter: "blur(12px)",
+      ...style
+    }}>
+      {children}
+    </div>
+  );
+}
+
+function Badge({ level }) {
+  const map = { HIGH: [RED, "#ff2d5533"], MED: [AMBER, "#ffaa0033"], LOW: [GREEN, "#00ff8833"], CRIT: ["#ff00ff", "#ff00ff33"], LIVE: [GREEN, "#00ff8833"], OFFLINE: ["#555", "#22222233"] };
+  const [c, bg] = map[level] || ["#aaa", "#33333333"];
+  return (
+    <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: c, background: bg, border: `1px solid ${c}55`, borderRadius: 4, padding: "2px 7px" }}>
+      {level}
+    </span>
+  );
+}
+
+function PulseRing({ color = RED, size = 16 }) {
+  return (
+    <span style={{ position: "relative", display: "inline-block", width: size, height: size }}>
+      <span style={{ position: "absolute", inset: 0, borderRadius: "50%", background: color, opacity: 0.9 }} />
+      <span style={{
+        position: "absolute", inset: -4, borderRadius: "50%", border: `2px solid ${color}`,
+        animation: "ping 1.2s cubic-bezier(0,0,0.2,1) infinite"
+      }} />
+    </span>
+  );
+}
+
+function StatCard({ label, value, color = NEON, icon }) {
+  return (
+    <GlowBorder color={color} style={{ padding: "18px 20px", flex: 1, minWidth: 140 }}>
+      <div style={{ fontSize: 11, color: "#aaa", letterSpacing: 1, marginBottom: 6 }}>{icon} {label}</div>
+      <div style={{ fontSize: 30, fontWeight: 800, color, fontFamily: "monospace", letterSpacing: 2 }}>{value}</div>
+    </GlowBorder>
+  );
+}
+
+function BarChart({ data, labels, color = NEON }) {
+  const max = Math.max(...data);
+  return (
+    <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 80 }}>
+      {data.map((v, i) => (
+        <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+          <div style={{
+            width: "100%", height: `${(v / max) * 70}px`,
+            background: `linear-gradient(to top, ${color}cc, ${color}44)`,
+            border: `1px solid ${color}88`,
+            borderRadius: "3px 3px 0 0",
+            boxShadow: `0 0 6px ${color}55`,
+            transition: "height 0.5s"
+          }} />
+          <span style={{ fontSize: 8, color: "#666" }}>{labels[i]}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function DonutChart({ slices }) {
+  const total = slices.reduce((a, s) => a + s.val, 0);
+  let cumAngle = -90;
+  const r = 60, cx = 80, cy = 80;
+  const paths = slices.map(s => {
+    const angle = (s.val / total) * 360;
+    const startRad = (cumAngle * Math.PI) / 180;
+    const endRad = ((cumAngle + angle) * Math.PI) / 180;
+    const x1 = cx + r * Math.cos(startRad), y1 = cy + r * Math.sin(startRad);
+    const x2 = cx + r * Math.cos(endRad), y2 = cy + r * Math.sin(endRad);
+    const large = angle > 180 ? 1 : 0;
+    const path = `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} Z`;
+    cumAngle += angle;
+    return { ...s, path };
+  });
+  return (
+    <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+      <svg width={160} height={160} viewBox="0 0 160 160">
+        {paths.map((s, i) => (
+          <path key={i} d={s.path} fill={s.color + "cc"} stroke="#000" strokeWidth={1.5} />
+        ))}
+        <circle cx={cx} cy={cy} r={32} fill="#000" />
+        <text x={cx} y={cy - 4} textAnchor="middle" fill={NEON} fontSize={12} fontWeight="bold">CRIME</text>
+        <text x={cx} y={cy + 12} textAnchor="middle" fill="#aaa" fontSize={9}>TYPES</text>
+      </svg>
+      <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+        {slices.map((s, i) => (
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11 }}>
+            <span style={{ width: 10, height: 10, borderRadius: 2, background: s.color, flexShrink: 0 }} />
+            <span style={{ color: "#ccc" }}>{s.label}</span>
+            <span style={{ color: s.color, fontWeight: 700, marginLeft: "auto", paddingLeft: 8 }}>{s.val}%</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function RadarChart({ sectors }) {
+  const n = sectors.length, cx = 90, cy = 90, R = 70;
+  const angles = sectors.map((_, i) => ((i * 360) / n - 90) * (Math.PI / 180));
+  const toXY = (angle, r) => [cx + r * Math.cos(angle), cy + r * Math.sin(angle)];
+  const gridLevels = [0.25, 0.5, 0.75, 1];
+  return (
+    <svg width={180} height={180} viewBox="0 0 180 180">
+      {gridLevels.map((l, gi) => (
+        <polygon key={gi}
+          points={angles.map(a => toXY(a, R * l).join(",")).join(" ")}
+          fill="none" stroke={NEON + "22"} strokeWidth={1} />
+      ))}
+      {angles.map((a, i) => {
+        const [x, y] = toXY(a, R);
+        return <line key={i} x1={cx} y1={cy} x2={x} y2={y} stroke={NEON + "22"} strokeWidth={1} />;
+      })}
+      <polygon
+        points={sectors.map((s, i) => toXY(angles[i], R * (s.risk / 100)).join(",")).join(" ")}
+        fill={RED + "33"} stroke={RED} strokeWidth={1.5} />
+      {sectors.map((s, i) => {
+        const [x, y] = toXY(angles[i], R * (s.risk / 100));
+        return <circle key={i} cx={x} cy={y} r={3} fill={RED} />;
+      })}
+      {sectors.map((s, i) => {
+        const [x, y] = toXY(angles[i], R + 14);
+        return <text key={i} x={x} y={y} textAnchor="middle" fill="#aaa" fontSize={8}>{s.sector.replace("Sector ", "S")}</text>;
+      })}
+      <circle cx={cx} cy={cy} r={4} fill={RED} />
+    </svg>
+  );
+}
+
+function CctvCard({ feed, active, onClick }) {
+  const [scanLine, setScanLine] = useState(0);
+  useInterval(() => setScanLine(p => (p + 2) % 100), 30);
+  return (
+    <GlowBorder color={feed.alert ? RED : feed.status === "OFFLINE" ? "#444" : NEON}
+      style={{ cursor: "pointer", overflow: "hidden" }}
+      onClick={onClick}>
+      <div style={{ position: "relative", height: 90, background: feed.status === "OFFLINE" ? "#111" : "#0a1a0a", overflow: "hidden" }}>
+        {feed.status === "LIVE" ? (
+          <>
+            <div style={{ position: "absolute", inset: 0, backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,255,0,0.03) 3px, rgba(0,255,0,0.03) 4px)" }} />
+            <div style={{ position: "absolute", left: 0, right: 0, height: 2, top: `${scanLine}%`, background: `linear-gradient(to right, transparent, ${NEON}88, transparent)`, transition: "top 0.03s linear" }} />
+            {feed.alert && (
+              <div style={{ position: "absolute", inset: 0, border: `2px solid ${RED}`, boxShadow: `inset 0 0 20px ${RED}33`, animation: "pulse 1s infinite" }} />
+            )}
+            <div style={{ position: "absolute", top: 6, left: 6, color: GREEN, fontSize: 8, fontWeight: 700, letterSpacing: 1 }}>● REC</div>
+            <div style={{ position: "absolute", top: 6, right: 6, color: "#aaa", fontSize: 8 }}>{new Date().toLocaleTimeString()}</div>
+            {feed.alert && (
+              <div style={{ position: "absolute", bottom: 6, left: 6, right: 6, background: RED + "cc", color: "#fff", fontSize: 9, padding: "2px 6px", borderRadius: 3, textAlign: "center" }}>
+                ⚠ MOTION DETECTED
+              </div>
+            )}
+            <div style={{ position: "absolute", top: "30%", left: "20%", width: 30, height: 22, border: `1px solid ${NEON}`, boxShadow: `0 0 6px ${NEON}` }} />
+          </>
+        ) : (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "#555", fontSize: 12 }}>
+            SIGNAL LOST
+          </div>
+        )}
+      </div>
+      <div style={{ padding: "6px 10px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <div style={{ fontSize: 10, color: NEON, fontWeight: 700 }}>{feed.id}</div>
+          <div style={{ fontSize: 9, color: "#666" }}>{feed.loc}</div>
+        </div>
+        <Badge level={feed.status} />
+      </div>
+    </GlowBorder>
+  );
+}
+
+function Sidebar({ page, setPage, role }) {
+  const navItems = [
+    { id: "dashboard", icon: "⬡", label: "Dashboard" },
+    { id: "heatmap", icon: "◉", label: "Crime Heatmap" },
+    { id: "ai", icon: "◈", label: "AI Prediction" },
+    { id: "cctv", icon: "◎", label: "CCTV Feeds" },
+    { id: "suspects", icon: "◆", label: "Suspects DB" },
+    { id: "facial", icon: "◉", label: "Facial Recog." },
+    { id: "analytics", icon: "▣", label: "Analytics" },
+    { id: "alerts", icon: "◇", label: "Live Alerts" },
+    { id: "report", icon: "✦", label: "Report Crime" },
+    { id: "drone", icon: "⬖", label: "Drone Monitor" },
+  ].filter(item => {
+    if (role === "citizen") return ["dashboard", "alerts", "report"].includes(item.id);
+    if (role === "analyst") return ["dashboard", "ai", "analytics", "heatmap", "alerts"].includes(item.id);
+    return true;
+  });
+
+  return (
+    <div style={{
+      width: 200, flexShrink: 0, background: "rgba(0,0,0,0.95)",
+      borderRight: `1px solid ${NEON}22`,
+      display: "flex", flexDirection: "column",
+      boxShadow: `4px 0 20px ${NEON}11`
+    }}>
+      <div style={{ padding: "20px 16px", borderBottom: `1px solid ${NEON}22` }}>
+        <div style={{ fontSize: 13, fontWeight: 900, color: NEON, letterSpacing: 2, fontFamily: "monospace" }}>CRIME</div>
+        <div style={{ fontSize: 13, fontWeight: 900, color: RED, letterSpacing: 2, fontFamily: "monospace" }}>VISION</div>
+        <div style={{ fontSize: 8, color: "#555", letterSpacing: 1, marginTop: 2 }}>AI SURVEILLANCE v2.1</div>
+      </div>
+      <nav style={{ flex: 1, padding: "8px 0", overflowY: "auto" }}>
+        {navItems.map(item => (
+          <button key={item.id} onClick={() => setPage(item.id)}
+            style={{
+              display: "flex", alignItems: "center", gap: 10, width: "100%",
+              padding: "10px 16px", background: page === item.id ? `${NEON}11` : "transparent",
+              border: "none", borderLeft: page === item.id ? `2px solid ${NEON}` : "2px solid transparent",
+              color: page === item.id ? NEON : "#666", cursor: "pointer", fontSize: 12,
+              textAlign: "left", transition: "all 0.2s", letterSpacing: 0.5
+            }}>
+            <span style={{ fontSize: 14 }}>{item.icon}</span>
+            {item.label}
+          </button>
+        ))}
+      </nav>
+      <div style={{ padding: "12px 16px", borderTop: `1px solid ${NEON}22`, fontSize: 9, color: "#444", letterSpacing: 0.5 }}>
+        Academic prototype only. All data simulated.
+      </div>
+    </div>
+  );
+}
+
+function DashboardPage({ liveCount }) {
+  const [ticker, setTicker] = useState(0);
+  useInterval(() => setTicker(t => t + 1), 3000);
+  const feed = [
+    `Patrol Unit 7 — Sector 12 perimeter clear`,
+    `AI flagged vehicle: Plate XR-4421 — Sector 9`,
+    `Emergency response dispatched — Sector 5`,
+    `Facial match logged — Camera 01, Sector 7`,
+    `Drone scan initiated — Zone B`,
+    `Suspect S-001 movement detected — Sector 7`,
+  ];
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div>
+          <h1 style={{ margin: 0, fontSize: 20, color: NEON, fontFamily: "monospace", letterSpacing: 2 }}>COMMAND CENTER</h1>
+          <p style={{ margin: "4px 0 0", fontSize: 11, color: "#555" }}>{new Date().toLocaleString()} — System Nominal</p>
+        </div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <PulseRing color={RED} />
+          <span style={{ color: RED, fontSize: 11, fontWeight: 700, letterSpacing: 1 }}>LIVE MONITORING</span>
+        </div>
+      </div>
+
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+        <StatCard label="TOTAL CRIMES" value={liveCount} color={NEON} icon="◉" />
+        <StatCard label="ACTIVE ALERTS" value="4" color={RED} icon="⚠" />
+        <StatCard label="INVESTIGATIONS" value="17" color={AMBER} icon="◆" />
+        <StatCard label="SUSPECTS" value="5" color={PURPLE} icon="◈" />
+        <StatCard label="DRONES ACTIVE" value="3" color={GREEN} icon="⬖" />
+      </div>
+
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+        <GlowBorder style={{ flex: 2, minWidth: 280, padding: 16 }}>
+          <div style={{ fontSize: 11, color: NEON, letterSpacing: 1, marginBottom: 12 }}>▣ MONTHLY CRIME TREND</div>
+          <BarChart data={monthlyData} labels={months} color={NEON} />
+        </GlowBorder>
+        <GlowBorder style={{ flex: 1, minWidth: 220, padding: 16 }}>
+          <div style={{ fontSize: 11, color: RED, letterSpacing: 1, marginBottom: 12 }}>◉ CRIME DISTRIBUTION</div>
+          <DonutChart slices={crimeTypes} />
+        </GlowBorder>
+      </div>
+
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+        <GlowBorder style={{ flex: 2, minWidth: 280, padding: 16 }}>
+          <div style={{ fontSize: 11, color: NEON, letterSpacing: 1, marginBottom: 10 }}>◎ RECENT REPORTS</div>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+            <thead>
+              <tr>
+                {["ID","TYPE","SECTOR","TIME","THREAT","STATUS"].map(h => (
+                  <th key={h} style={{ color: "#555", textAlign: "left", padding: "4px 8px", borderBottom: `1px solid ${NEON}22`, fontWeight: 400, letterSpacing: 1 }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {crimeReports.map(r => (
+                <tr key={r.id} style={{ borderBottom: `1px solid ${NEON}11` }}>
+                  <td style={{ padding: "6px 8px", color: NEON, fontFamily: "monospace" }}>{r.id}</td>
+                  <td style={{ padding: "6px 8px", color: "#ccc" }}>{r.type}</td>
+                  <td style={{ padding: "6px 8px", color: "#888" }}>{r.sector}</td>
+                  <td style={{ padding: "6px 8px", color: "#666", fontFamily: "monospace" }}>{r.time}</td>
+                  <td style={{ padding: "6px 8px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      <div style={{ flex: 1, height: 4, background: "#111", borderRadius: 2 }}>
+                        <div style={{ width: `${r.threat}%`, height: "100%", background: r.threat > 70 ? RED : r.threat > 50 ? AMBER : GREEN, borderRadius: 2 }} />
+                      </div>
+                      <span style={{ color: r.threat > 70 ? RED : r.threat > 50 ? AMBER : GREEN, minWidth: 24 }}>{r.threat}%</span>
+                    </div>
+                  </td>
+                  <td style={{ padding: "6px 8px" }}><Badge level={r.status === "Active" ? "HIGH" : r.status === "Pending" ? "MED" : "LOW"} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </GlowBorder>
+        <GlowBorder style={{ flex: 1, minWidth: 200, padding: 16 }}>
+          <div style={{ fontSize: 11, color: AMBER, letterSpacing: 1, marginBottom: 10 }}>◇ LIVE FEED</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {[feed[ticker % feed.length], feed[(ticker + 1) % feed.length], feed[(ticker + 2) % feed.length]].map((f, i) => (
+              <div key={i} style={{ fontSize: 10, color: i === 0 ? "#ccc" : "#555", padding: "6px 8px", background: i === 0 ? DIM : "transparent", borderRadius: 6, borderLeft: `2px solid ${i === 0 ? NEON : "#333"}` }}>
+                <span style={{ color: NEON, fontFamily: "monospace", marginRight: 6 }}>{new Date().toLocaleTimeString()}</span>{f}
+              </div>
+            ))}
+          </div>
+        </GlowBorder>
+      </div>
+    </div>
+  );
+}
+
+function HeatmapPage() {
+  const sectors = [
+    { id: 1, label: "S1", x: 60, y: 40, risk: 45, crimes: 5 },
+    { id: 3, label: "S3", x: 180, y: 30, risk: 55, crimes: 8 },
+    { id: 5, label: "S5", x: 300, y: 50, risk: 38, crimes: 4 },
+    { id: 7, label: "S7", x: 110, y: 130, risk: 92, crimes: 22 },
+    { id: 9, label: "S9", x: 230, y: 140, risk: 71, crimes: 14 },
+    { id: 12, label: "S12", x: 350, y: 140, risk: 78, crimes: 18 },
+    { id: 4, label: "S4", x: 60, y: 220, risk: 30, crimes: 3 },
+    { id: 6, label: "S6", x: 180, y: 230, risk: 62, crimes: 11 },
+    { id: 10, label: "S10", x: 310, y: 220, risk: 48, crimes: 7 },
+  ];
+  const [selected, setSelected] = useState(null);
+  const [filter, setFilter] = useState("ALL");
+
+  const riskColor = (r) => r > 80 ? RED : r > 60 ? AMBER : r > 40 ? "#ffdd00" : GREEN;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+        <h2 style={{ margin: 0, fontSize: 16, color: NEON, fontFamily: "monospace", letterSpacing: 2 }}>◉ CRIME HEATMAP — CITY GRID</h2>
+        <div style={{ display: "flex", gap: 6 }}>
+          {["ALL","HIGH","MED","LOW"].map(f => (
+            <button key={f} onClick={() => setFilter(f)}
+              style={{ padding: "4px 12px", background: filter === f ? NEON + "33" : "transparent", border: `1px solid ${filter === f ? NEON : "#333"}`, color: filter === f ? NEON : "#666", borderRadius: 6, cursor: "pointer", fontSize: 10, letterSpacing: 1 }}>
+              {f}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+        <GlowBorder style={{ flex: 2, minWidth: 300, padding: 16, position: "relative" }}>
+          <svg width="100%" viewBox="0 0 430 280" style={{ display: "block" }}>
+            <defs>
+              <radialGradient id="heat7" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stopColor={RED} stopOpacity="0.5" />
+                <stop offset="100%" stopColor={RED} stopOpacity="0" />
+              </radialGradient>
+              <radialGradient id="heat12" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stopColor={AMBER} stopOpacity="0.4" />
+                <stop offset="100%" stopColor={AMBER} stopOpacity="0" />
+              </radialGradient>
+            </defs>
+            <rect x="0" y="0" width="430" height="280" fill="#050d05" rx="8" />
+            {Array.from({ length: 9 }).map((_, i) => (
+              <line key={`h${i}`} x1={0} y1={i * 35} x2={430} y2={i * 35} stroke={NEON + "11"} strokeWidth={1} />
+            ))}
+            {Array.from({ length: 13 }).map((_, i) => (
+              <line key={`v${i}`} x1={i * 35} y1={0} x2={i * 35} y2={280} stroke={NEON + "11"} strokeWidth={1} />
+            ))}
+            <ellipse cx={110} cy={130} rx={60} ry={45} fill="url(#heat7)" />
+            <ellipse cx={350} cy={140} rx={55} ry={40} fill="url(#heat12)" />
+            {sectors
+              .filter(s => filter === "ALL" || (filter === "HIGH" && s.risk > 70) || (filter === "MED" && s.risk > 40 && s.risk <= 70) || (filter === "LOW" && s.risk <= 40))
+              .map(s => (
+                <g key={s.id} onClick={() => setSelected(s)} style={{ cursor: "pointer" }}>
+                  <circle cx={s.x} cy={s.y} r={s.risk / 8 + 8} fill={riskColor(s.risk) + "33"} stroke={riskColor(s.risk)} strokeWidth={1} />
+                  <circle cx={s.x} cy={s.y} r={5} fill={riskColor(s.risk)} />
+                  <text x={s.x} y={s.y - 14} textAnchor="middle" fill="#ccc" fontSize={9}>{s.label}</text>
+                  <text x={s.x} y={s.y + 20} textAnchor="middle" fill={riskColor(s.risk)} fontSize={8}>{s.risk}%</text>
+                </g>
+              ))}
+            <text x={8} y={14} fill={NEON} fontSize={9} fontFamily="monospace">SMARTCITY — NORTH DISTRICT</text>
+            <text x={8} y={270} fill="#444" fontSize={7}>⬡ Each node = sector risk score</text>
+          </svg>
+        </GlowBorder>
+
+        <div style={{ flex: 1, minWidth: 180, display: "flex", flexDirection: "column", gap: 10 }}>
+          {selected ? (
+            <GlowBorder color={riskColor(selected.risk)} style={{ padding: 16 }}>
+              <div style={{ fontSize: 11, color: riskColor(selected.risk), letterSpacing: 1, marginBottom: 10 }}>◆ SECTOR {selected.id} DETAILS</div>
+              <div style={{ fontSize: 11, color: "#aaa", marginBottom: 6 }}>Crimes Reported: <span style={{ color: "#fff" }}>{selected.crimes}</span></div>
+              <div style={{ fontSize: 11, color: "#aaa", marginBottom: 6 }}>Risk Score: <span style={{ color: riskColor(selected.risk), fontWeight: 700 }}>{selected.risk}%</span></div>
+              <div style={{ fontSize: 11, color: "#aaa", marginBottom: 10 }}>Status: <Badge level={selected.risk > 70 ? "HIGH" : selected.risk > 40 ? "MED" : "LOW"} /></div>
+              <div style={{ height: 6, background: "#111", borderRadius: 3 }}>
+                <div style={{ width: `${selected.risk}%`, height: "100%", background: riskColor(selected.risk), borderRadius: 3 }} />
+              </div>
+            </GlowBorder>
+          ) : (
+            <GlowBorder style={{ padding: 16 }}>
+              <div style={{ fontSize: 11, color: "#555", textAlign: "center", paddingTop: 20 }}>Click a sector node to view details</div>
+            </GlowBorder>
+          )}
+          <GlowBorder style={{ padding: 12 }}>
+            <div style={{ fontSize: 10, color: "#555", letterSpacing: 1, marginBottom: 8 }}>RISK LEGEND</div>
+            {[["CRITICAL", RED, ">80%"], ["HIGH", AMBER, "60–80%"], ["MODERATE", "#ffdd00", "40–60%"], ["LOW", GREEN, "<40%"]].map(([l, c, r]) => (
+              <div key={l} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5, fontSize: 10 }}>
+                <span style={{ width: 8, height: 8, borderRadius: "50%", background: c }} />
+                <span style={{ color: c }}>{l}</span>
+                <span style={{ color: "#444", marginLeft: "auto" }}>{r}</span>
+              </div>
+            ))}
+          </GlowBorder>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AIPredictionPage() {
+  const [scanning, setScanning] = useState(false);
+  const [scanProgress, setScanProgress] = useState(0);
+  const [scanDone, setScanDone] = useState(false);
+
+  const runScan = () => {
+    setScanning(true); setScanDone(false); setScanProgress(0);
+    let p = 0;
+    const t = setInterval(() => {
+      p += Math.random() * 5 + 2;
+      setScanProgress(Math.min(p, 100));
+      if (p >= 100) { clearInterval(t); setScanning(false); setScanDone(true); }
+    }, 80);
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+        <h2 style={{ margin: 0, fontSize: 16, color: NEON, fontFamily: "monospace", letterSpacing: 2 }}>◈ AI CRIME PREDICTION ENGINE</h2>
+        <button onClick={runScan} disabled={scanning}
+          style={{ padding: "8px 18px", background: scanning ? "#111" : NEON + "22", border: `1px solid ${NEON}`, color: NEON, borderRadius: 8, cursor: scanning ? "not-allowed" : "pointer", fontSize: 11, letterSpacing: 1 }}>
+          {scanning ? `SCANNING ${Math.round(scanProgress)}%` : "▶ RUN AI SCAN"}
+        </button>
+      </div>
+
+      {scanning && (
+        <GlowBorder color={NEON} style={{ padding: 12 }}>
+          <div style={{ fontSize: 10, color: NEON, marginBottom: 6, letterSpacing: 1 }}>AI ENGINE — PROCESSING CITY DATA...</div>
+          <div style={{ height: 6, background: "#111", borderRadius: 3 }}>
+            <div style={{ width: `${scanProgress}%`, height: "100%", background: `linear-gradient(to right, ${NEON}, ${PURPLE})`, borderRadius: 3, transition: "width 0.1s" }} />
+          </div>
+        </GlowBorder>
+      )}
+
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+        <div style={{ flex: 2, minWidth: 280, display: "flex", flexDirection: "column", gap: 10 }}>
+          {aiPredictions.map((p, i) => (
+            <GlowBorder key={i} color={p.risk > 80 ? RED : p.risk > 60 ? AMBER : NEON} style={{ padding: 14 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                <div>
+                  <div style={{ fontSize: 12, color: "#fff", fontWeight: 700 }}>{p.sector}</div>
+                  <div style={{ fontSize: 10, color: "#888", marginTop: 2 }}>Predicted: {p.type}</div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontSize: 22, fontWeight: 900, color: p.risk > 80 ? RED : p.risk > 60 ? AMBER : NEON, fontFamily: "monospace" }}>{p.risk}%</div>
+                  <div style={{ fontSize: 9, color: "#555" }}>RISK SCORE</div>
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 12, fontSize: 10, color: "#666", marginBottom: 8 }}>
+                <span>⏱ {p.window}</span>
+                <span>✓ Confidence: <span style={{ color: NEON }}>{p.confidence}%</span></span>
+              </div>
+              <div style={{ height: 4, background: "#111", borderRadius: 2 }}>
+                <div style={{ width: `${p.risk}%`, height: "100%", background: p.risk > 80 ? RED : p.risk > 60 ? AMBER : NEON, borderRadius: 2 }} />
+              </div>
+            </GlowBorder>
+          ))}
+        </div>
+        <div style={{ flex: 1, minWidth: 200, display: "flex", flexDirection: "column", gap: 12 }}>
+          <GlowBorder color={RED} style={{ padding: 16, textAlign: "center" }}>
+            <div style={{ fontSize: 10, color: "#888", letterSpacing: 1, marginBottom: 8 }}>SECTOR RISK RADAR</div>
+            <RadarChart sectors={aiPredictions} />
+          </GlowBorder>
+          <GlowBorder style={{ padding: 14 }}>
+            <div style={{ fontSize: 10, color: NEON, letterSpacing: 1, marginBottom: 10 }}>AI MODEL STATUS</div>
+            {[["Model Version", "v3.7-THREAT"], ["Training Data", "847K incidents"], ["Accuracy", "91.4%"], ["Last Run", "Just now"], ["Status", scanDone ? "✓ COMPLETE" : "STANDBY"]].map(([k, v]) => (
+              <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: 10, marginBottom: 6 }}>
+                <span style={{ color: "#666" }}>{k}</span>
+                <span style={{ color: v === "✓ COMPLETE" ? GREEN : NEON, fontFamily: "monospace" }}>{v}</span>
+              </div>
+            ))}
+          </GlowBorder>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CctvPage() {
+  const [activeId, setActiveId] = useState("CAM-01");
+  const [scanLine, setScanLine] = useState(0);
+  const active = cctvFeeds.find(f => f.id === activeId);
+  useInterval(() => setScanLine(p => (p + 1.5) % 100), 25);
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <h2 style={{ margin: 0, fontSize: 16, color: NEON, fontFamily: "monospace", letterSpacing: 2 }}>◎ SMART CCTV SURVEILLANCE</h2>
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+        <GlowBorder color={active?.alert ? RED : NEON} style={{ flex: 2, minWidth: 300, overflow: "hidden" }}>
+          <div style={{ position: "relative", height: 220, background: "#050f05" }}>
+            {active?.status === "LIVE" ? (
+              <>
+                <div style={{ position: "absolute", inset: 0, backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 4px, rgba(0,255,0,0.02) 4px, rgba(0,255,0,0.02) 5px)" }} />
+                <div style={{ position: "absolute", left: 0, right: 0, height: 3, top: `${scanLine}%`, background: `linear-gradient(to right, transparent, ${NEON}aa, transparent)`, pointerEvents: "none" }} />
+                {active?.alert && (
+                  <>
+                    <div style={{ position: "absolute", inset: 0, border: `3px solid ${RED}`, boxShadow: `inset 0 0 40px ${RED}33`, animation: "pulse 0.8s infinite" }} />
+                    <div style={{ position: "absolute", top: 16, left: "50%", transform: "translateX(-50%)", background: RED, color: "#fff", fontSize: 11, fontWeight: 700, padding: "6px 16px", borderRadius: 6, letterSpacing: 1 }}>
+                      ⚠ SUSPICIOUS ACTIVITY DETECTED
+                    </div>
+                  </>
+                )}
+                <div style={{ position: "absolute", top: 8, left: 8, display: "flex", gap: 6, alignItems: "center" }}>
+                  <PulseRing color={GREEN} size={10} />
+                  <span style={{ color: GREEN, fontSize: 9, fontWeight: 700, letterSpacing: 1 }}>LIVE</span>
+                  <span style={{ color: "#aaa", fontSize: 9 }}>{activeId}</span>
+                </div>
+                <div style={{ position: "absolute", top: 8, right: 8, color: "#aaa", fontSize: 9, fontFamily: "monospace" }}>{new Date().toLocaleTimeString()}</div>
+                <div style={{ position: "absolute", top: "35%", left: "30%", width: 50, height: 36, border: `1.5px solid ${NEON}`, boxShadow: `0 0 10px ${NEON}88` }}>
+                  <div style={{ position: "absolute", top: -16, left: 0, fontSize: 8, color: NEON }}>TRACK #1</div>
+                </div>
+                {active?.alert && (
+                  <div style={{ position: "absolute", top: "45%", left: "55%", width: 40, height: 60, border: `1.5px solid ${RED}`, boxShadow: `0 0 10px ${RED}88` }}>
+                    <div style={{ position: "absolute", top: -16, left: 0, fontSize: 8, color: RED }}>SUSPECT</div>
+                  </div>
+                )}
+                <div style={{ position: "absolute", bottom: 8, left: 8, right: 8, display: "flex", justifyContent: "space-between", fontSize: 8, color: "#555", fontFamily: "monospace" }}>
+                  <span>FPS: 30 | RES: 1080p | AI: ON</span>
+                  <span>{active?.loc}</span>
+                </div>
+              </>
+            ) : (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "#444", flexDirection: "column", gap: 8 }}>
+                <span style={{ fontSize: 24 }}>⊗</span>
+                <span style={{ fontSize: 11 }}>SIGNAL LOST — {activeId}</span>
+              </div>
+            )}
+          </div>
+        </GlowBorder>
+        <div style={{ flex: 1, minWidth: 180, display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ fontSize: 10, color: "#555", letterSpacing: 1 }}>ALL CAMERAS</div>
+          {cctvFeeds.map(f => (
+            <CctvCard key={f.id} feed={f} active={activeId === f.id} onClick={() => setActiveId(f.id)} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SuspectsPage() {
+  const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState(null);
+  const filtered = suspects.filter(s => s.name.toLowerCase().includes(search.toLowerCase()) || s.crime.toLowerCase().includes(search.toLowerCase()));
+  const dangerColor = d => d === "HIGH" ? RED : d === "MED" ? AMBER : GREEN;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+        <h2 style={{ margin: 0, fontSize: 16, color: NEON, fontFamily: "monospace", letterSpacing: 2 }}>◆ SUSPECT DATABASE</h2>
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search suspect or crime..."
+          style={{ padding: "6px 12px", background: "#0a0a0a", border: `1px solid ${NEON}44`, color: NEON, borderRadius: 8, fontSize: 11, outline: "none", width: 220 }} />
+      </div>
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+        <div style={{ flex: 2, minWidth: 280, display: "flex", flexDirection: "column", gap: 8 }}>
+          {filtered.map(s => (
+            <GlowBorder key={s.id} color={dangerColor(s.danger)}
+              style={{ padding: 14, cursor: "pointer", transition: "all 0.2s" }}
+              onClick={() => setSelected(s)}>
+              <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+                <div style={{
+                  width: 44, height: 44, borderRadius: "50%", background: dangerColor(s.danger) + "33",
+                  border: `2px solid ${dangerColor(s.danger)}`, display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 14, fontWeight: 700, color: dangerColor(s.danger), flexShrink: 0
+                }}>{s.img}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, color: "#fff", fontWeight: 700 }}>{s.name}</div>
+                  <div style={{ fontSize: 10, color: "#888", marginTop: 2 }}>{s.crime} · Age {s.age}</div>
+                  <div style={{ fontSize: 10, color: "#555", marginTop: 1 }}>Last: {s.lastSeen}</div>
+                </div>
+                <div style={{ textAlign: "right", display: "flex", flexDirection: "column", gap: 4 }}>
+                  <Badge level={s.danger} />
+                  <span style={{ fontSize: 9, color: "#666" }}>{s.cases} cases</span>
+                </div>
+              </div>
+            </GlowBorder>
+          ))}
+        </div>
+        {selected && (
+          <GlowBorder color={dangerColor(selected.danger)} style={{ flex: 1, minWidth: 200, padding: 20 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
+              <div style={{ fontSize: 11, color: dangerColor(selected.danger), letterSpacing: 1 }}>SUSPECT PROFILE</div>
+              <button onClick={() => setSelected(null)} style={{ background: "none", border: "none", color: "#666", cursor: "pointer", fontSize: 14 }}>✕</button>
+            </div>
+            <div style={{ width: 64, height: 64, borderRadius: "50%", background: dangerColor(selected.danger) + "33", border: `2px solid ${dangerColor(selected.danger)}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, fontWeight: 700, color: dangerColor(selected.danger), margin: "0 auto 16px" }}>{selected.img}</div>
+            <div style={{ textAlign: "center", marginBottom: 16 }}>
+              <div style={{ fontSize: 16, color: "#fff", fontWeight: 700 }}>{selected.name}</div>
+              <div style={{ fontSize: 11, color: "#888" }}>ID: {selected.id}</div>
+            </div>
+            {[["Crime", selected.crime], ["Age", selected.age], ["Danger Level", selected.danger], ["Status", selected.status], ["Last Seen", selected.lastSeen], ["Cases", `${selected.cases} recorded`]].map(([k, v]) => (
+              <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 8, borderBottom: `1px solid #111`, paddingBottom: 6 }}>
+                <span style={{ color: "#666" }}>{k}</span>
+                <span style={{ color: k === "Danger Level" ? dangerColor(selected.danger) : "#ccc" }}>{v}</span>
+              </div>
+            ))}
+          </GlowBorder>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function FacialPage() {
+  const [scanning, setScanning] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [result, setResult] = useState(null);
+
+  const runScan = () => {
+    setScanning(true); setProgress(0); setResult(null);
+    let p = 0;
+    const t = setInterval(() => {
+      p += Math.random() * 8 + 3;
+      setProgress(Math.min(Math.round(p), 100));
+      if (p >= 100) {
+        clearInterval(t);
+        setScanning(false);
+        setResult(faceLog[Math.floor(Math.random() * faceLog.length)]);
+      }
+    }, 60);
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <h2 style={{ margin: 0, fontSize: 16, color: NEON, fontFamily: "monospace", letterSpacing: 2 }}>◉ FACIAL RECOGNITION SYSTEM</h2>
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+        <GlowBorder style={{ flex: 1, minWidth: 240, padding: 20 }}>
+          <div style={{ fontSize: 11, color: NEON, letterSpacing: 1, marginBottom: 16 }}>SCAN INTERFACE</div>
+          <div style={{ position: "relative", width: "100%", height: 160, background: "#050f05", borderRadius: 8, marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", border: `1px solid ${NEON}22` }}>
+            {scanning ? (
+              <>
+                <div style={{ position: "absolute", inset: 0, backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,240,255,0.04) 3px, rgba(0,240,255,0.04) 4px)" }} />
+                <div style={{ position: "absolute", left: 0, right: 0, height: 2, top: `${progress}%`, background: `linear-gradient(to right, transparent, ${NEON}, transparent)`, transition: "top 0.06s" }} />
+                <div style={{ width: 80, height: 90, border: `2px solid ${NEON}`, boxShadow: `0 0 20px ${NEON}55`, borderRadius: 4 }}>
+                  <div style={{ position: "absolute", top: -2, left: -2, width: 14, height: 14, border: `2px solid ${NEON}`, borderRight: "none", borderBottom: "none" }} />
+                  <div style={{ position: "absolute", top: -2, right: -2, width: 14, height: 14, border: `2px solid ${NEON}`, borderLeft: "none", borderBottom: "none" }} />
+                  <div style={{ position: "absolute", bottom: -2, left: -2, width: 14, height: 14, border: `2px solid ${NEON}`, borderRight: "none", borderTop: "none" }} />
+                  <div style={{ position: "absolute", bottom: -2, right: -2, width: 14, height: 14, border: `2px solid ${NEON}`, borderLeft: "none", borderTop: "none" }} />
+                </div>
+                <div style={{ position: "absolute", bottom: 8, left: 0, right: 0, textAlign: "center", fontSize: 10, color: NEON, fontFamily: "monospace" }}>SCANNING... {progress}%</div>
+              </>
+            ) : result ? (
+              <div style={{ textAlign: "center", padding: 16 }}>
+                <div style={{ width: 60, height: 70, border: `2px solid ${result.match > 80 ? RED : AMBER}`, margin: "0 auto 10px", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: result.match > 80 ? RED : AMBER }}>👤</div>
+                <div style={{ fontSize: 13, color: result.match > 80 ? RED : AMBER, fontWeight: 700 }}>{result.name}</div>
+                <div style={{ fontSize: 10, color: "#888" }}>{result.match}% MATCH</div>
+              </div>
+            ) : (
+              <div style={{ textAlign: "center", color: "#333", fontSize: 11 }}>
+                <div style={{ fontSize: 32, marginBottom: 8 }}>◉</div>
+                <div>Upload or use camera feed</div>
+              </div>
+            )}
+          </div>
+          <button onClick={runScan} disabled={scanning}
+            style={{ width: "100%", padding: "10px", background: scanning ? "#0a0a0a" : NEON + "22", border: `1px solid ${NEON}`, color: NEON, borderRadius: 8, cursor: scanning ? "not-allowed" : "pointer", fontSize: 11, letterSpacing: 1 }}>
+            {scanning ? "SCANNING..." : "▶ START FACE SCAN"}
+          </button>
+          {result && (
+            <div style={{ marginTop: 12, padding: 12, background: (result.match > 80 ? RED : AMBER) + "11", border: `1px solid ${result.match > 80 ? RED : AMBER}44`, borderRadius: 8 }}>
+              <div style={{ fontSize: 12, color: result.match > 80 ? RED : AMBER, fontWeight: 700, marginBottom: 6 }}>
+                {result.match > 80 ? "⚠ MATCH FOUND" : "◈ PARTIAL MATCH"}
+              </div>
+              {[["Name", result.name], ["Match", `${result.match}%`], ["Status", result.status], ["Camera", result.cam], ["Time", result.time]].map(([k, v]) => (
+                <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: 10, marginBottom: 4 }}>
+                  <span style={{ color: "#666" }}>{k}</span>
+                  <span style={{ color: "#ccc" }}>{v}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </GlowBorder>
+
+        <GlowBorder style={{ flex: 2, minWidth: 280, padding: 16 }}>
+          <div style={{ fontSize: 11, color: NEON, letterSpacing: 1, marginBottom: 12 }}>RECOGNITION LOGS</div>
+          {faceLog.map(l => (
+            <div key={l.id} style={{ padding: 12, marginBottom: 8, background: DIM, border: `1px solid ${l.match > 80 ? RED : AMBER}33`, borderRadius: 8 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                <span style={{ fontSize: 12, color: "#fff", fontWeight: 700 }}>{l.name}</span>
+                <Badge level={l.status === "WANTED" ? "HIGH" : l.status === "MONITORED" ? "MED" : "LOW"} />
+              </div>
+              <div style={{ display: "flex", gap: 16, fontSize: 10, color: "#666", marginBottom: 8 }}>
+                <span>ID: <span style={{ color: NEON }}>{l.id}</span></span>
+                <span>{l.cam}</span>
+                <span>{l.time}</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ flex: 1, height: 5, background: "#111", borderRadius: 3 }}>
+                  <div style={{ width: `${l.match}%`, height: "100%", background: l.match > 80 ? RED : AMBER, borderRadius: 3 }} />
+                </div>
+                <span style={{ fontSize: 11, color: l.match > 80 ? RED : AMBER, fontWeight: 700, minWidth: 36 }}>{l.match}%</span>
+              </div>
+            </div>
+          ))}
+        </GlowBorder>
+      </div>
+    </div>
+  );
+}
+
+function AnalyticsPage() {
+  const maxBar = Math.max(...monthlyData);
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <h2 style={{ margin: 0, fontSize: 16, color: NEON, fontFamily: "monospace", letterSpacing: 2 }}>▣ CRIME ANALYTICS DASHBOARD</h2>
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+        <StatCard label="AI ACCURACY" value="91.4%" color={GREEN} icon="◈" />
+        <StatCard label="RESPONSE TIME" value="4.2m" color={NEON} icon="⏱" />
+        <StatCard label="SOLVED RATE" value="67%" color={AMBER} icon="✓" />
+        <StatCard label="OPEN CASES" value="38" color={RED} icon="◉" />
+      </div>
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+        <GlowBorder style={{ flex: 2, minWidth: 280, padding: 18 }}>
+          <div style={{ fontSize: 11, color: NEON, letterSpacing: 1, marginBottom: 14 }}>▣ MONTHLY CRIME VOLUME — 2024</div>
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 5, height: 130 }}>
+            {monthlyData.map((v, i) => (
+              <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+                <span style={{ fontSize: 8, color: v === maxBar ? RED : NEON }}>{v}</span>
+                <div style={{
+                  width: "100%", height: `${(v / maxBar) * 110}px`,
+                  background: v === maxBar ? `linear-gradient(to top, ${RED}cc, ${RED}44)` : `linear-gradient(to top, ${NEON}cc, ${NEON}22)`,
+                  border: `1px solid ${v === maxBar ? RED : NEON}55`, borderRadius: "3px 3px 0 0",
+                  boxShadow: `0 0 8px ${v === maxBar ? RED : NEON}33`
+                }} />
+                <span style={{ fontSize: 7, color: "#555" }}>{months[i]}</span>
+              </div>
+            ))}
+          </div>
+        </GlowBorder>
+        <GlowBorder style={{ flex: 1, minWidth: 200, padding: 18 }}>
+          <div style={{ fontSize: 11, color: RED, letterSpacing: 1, marginBottom: 14 }}>◉ CRIME CATEGORIES</div>
+          <DonutChart slices={crimeTypes} />
+        </GlowBorder>
+      </div>
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+        <GlowBorder style={{ flex: 1, minWidth: 200, padding: 18 }}>
+          <div style={{ fontSize: 11, color: PURPLE, letterSpacing: 1, marginBottom: 12 }}>◈ AI PREDICTION ACCURACY</div>
+          {[["Armed Robbery", 91], ["Drug Activity", 84], ["Vandalism", 76], ["Cybercrime", 88], ["Assault", 79]].map(([label, val]) => (
+            <div key={label} style={{ marginBottom: 10 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, marginBottom: 3 }}>
+                <span style={{ color: "#aaa" }}>{label}</span>
+                <span style={{ color: PURPLE }}>{val}%</span>
+              </div>
+              <div style={{ height: 4, background: "#111", borderRadius: 2 }}>
+                <div style={{ width: `${val}%`, height: "100%", background: `linear-gradient(to right, ${PURPLE}, ${NEON})`, borderRadius: 2 }} />
+              </div>
+            </div>
+          ))}
+        </GlowBorder>
+        <GlowBorder style={{ flex: 1, minWidth: 200, padding: 18 }}>
+          <div style={{ fontSize: 11, color: AMBER, letterSpacing: 1, marginBottom: 12 }}>⬡ AREA RISK DISTRIBUTION</div>
+          {aiPredictions.map(p => (
+            <div key={p.sector} style={{ marginBottom: 10 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, marginBottom: 3 }}>
+                <span style={{ color: "#aaa" }}>{p.sector}</span>
+                <span style={{ color: p.risk > 80 ? RED : p.risk > 60 ? AMBER : NEON }}>{p.risk}%</span>
+              </div>
+              <div style={{ height: 5, background: "#111", borderRadius: 2 }}>
+                <div style={{ width: `${p.risk}%`, height: "100%", background: p.risk > 80 ? RED : p.risk > 60 ? AMBER : NEON, borderRadius: 2 }} />
+              </div>
+            </div>
+          ))}
+        </GlowBorder>
+      </div>
+    </div>
+  );
+}
+
+function AlertsPage() {
+  const [liveAlerts, setLiveAlerts] = useState(alerts);
+  const [dismissed, setDismissed] = useState([]);
+  useInterval(() => {
+    const newAlerts = [
+      "Motion detected — Sector 7, Camera 03",
+      "Drone flagged movement — Zone C",
+      "AI anomaly: Unusual crowd — Sector 5",
+      "Unregistered vehicle — Gate 2",
+      "Network intrusion attempt detected",
+    ];
+    const rand = newAlerts[Math.floor(Math.random() * newAlerts.length)];
+    const levels = ["HIGH", "MED", "CRIT"];
+    setLiveAlerts(prev => [{
+      id: Date.now(), msg: rand,
+      level: levels[Math.floor(Math.random() * levels.length)],
+      time: new Date().toLocaleTimeString()
+    }, ...prev.slice(0, 9)]);
+  }, 5000);
+
+  const levelColor = l => l === "CRIT" ? "#ff00ff" : l === "HIGH" ? RED : AMBER;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <h2 style={{ margin: 0, fontSize: 16, color: RED, fontFamily: "monospace", letterSpacing: 2 }}>◇ LIVE ALERT SYSTEM</h2>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <PulseRing color={RED} />
+          <span style={{ color: RED, fontSize: 11, fontWeight: 700 }}>{liveAlerts.filter(a => !dismissed.includes(a.id)).length} ACTIVE</span>
+        </div>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {liveAlerts.filter(a => !dismissed.includes(a.id)).map((a, i) => (
+          <GlowBorder key={a.id} color={levelColor(a.level)}
+            style={{ padding: "12px 14px", transition: "all 0.3s", opacity: i > 6 ? 0.4 : 1 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <span style={{ fontSize: 18, animation: a.level === "CRIT" ? "ping 0.8s infinite" : "none" }}>
+                {a.level === "CRIT" ? "🚨" : a.level === "HIGH" ? "⚠" : "◈"}
+              </span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 12, color: "#fff" }}>{a.msg}</div>
+                <div style={{ fontSize: 10, color: "#555", marginTop: 2, fontFamily: "monospace" }}>{a.time}</div>
+              </div>
+              <Badge level={a.level} />
+              <button onClick={() => setDismissed(d => [...d, a.id])}
+                style={{ background: "none", border: "none", color: "#555", cursor: "pointer", fontSize: 14, padding: "0 4px" }}>✕</button>
+            </div>
+          </GlowBorder>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ReportPage() {
+  const [form, setForm] = useState({ type: "", sector: "", desc: "", sos: false });
+  const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const submit = () => {
+    setSubmitting(true);
+    setTimeout(() => { setSubmitting(false); setSubmitted(true); }, 1800);
+  };
+
+  if (submitted) return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 300 }}>
+      <GlowBorder color={GREEN} style={{ padding: 40, textAlign: "center", maxWidth: 400 }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>✓</div>
+        <div style={{ fontSize: 18, color: GREEN, fontWeight: 700, marginBottom: 8, fontFamily: "monospace" }}>REPORT SUBMITTED</div>
+        <div style={{ fontSize: 12, color: "#888", marginBottom: 20 }}>Your report has been logged. Reference: CR-{Math.floor(Math.random() * 9000) + 1000}</div>
+        <button onClick={() => { setSubmitted(false); setForm({ type: "", sector: "", desc: "", sos: false }); }}
+          style={{ padding: "8px 20px", background: GREEN + "22", border: `1px solid ${GREEN}`, color: GREEN, borderRadius: 8, cursor: "pointer", fontSize: 11 }}>
+          Submit Another
+        </button>
+      </GlowBorder>
+    </div>
+  );
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <h2 style={{ margin: 0, fontSize: 16, color: RED, fontFamily: "monospace", letterSpacing: 2 }}>✦ CITIZEN EMERGENCY REPORTING</h2>
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+        <GlowBorder style={{ flex: 2, minWidth: 280, padding: 24 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div>
+              <label style={{ fontSize: 10, color: NEON, letterSpacing: 1, display: "block", marginBottom: 6 }}>CRIME TYPE</label>
+              <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}
+                style={{ width: "100%", padding: "8px 12px", background: "#0a0a0a", border: `1px solid ${NEON}44`, color: "#ccc", borderRadius: 8, fontSize: 11 }}>
+                <option value="">Select crime type...</option>
+                {["Robbery", "Assault", "Vandalism", "Cybercrime", "Drug Activity", "Suspicious Activity", "Emergency"].map(t => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize: 10, color: NEON, letterSpacing: 1, display: "block", marginBottom: 6 }}>SECTOR / LOCATION</label>
+              <select value={form.sector} onChange={e => setForm(f => ({ ...f, sector: e.target.value }))}
+                style={{ width: "100%", padding: "8px 12px", background: "#0a0a0a", border: `1px solid ${NEON}44`, color: "#ccc", borderRadius: 8, fontSize: 11 }}>
+                <option value="">Select sector...</option>
+                {[1,3,4,5,6,7,9,10,12].map(n => <option key={n} value={`Sector ${n}`}>Sector {n}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize: 10, color: NEON, letterSpacing: 1, display: "block", marginBottom: 6 }}>INCIDENT DESCRIPTION</label>
+              <textarea value={form.desc} onChange={e => setForm(f => ({ ...f, desc: e.target.value }))}
+                rows={4} placeholder="Describe the incident in detail..."
+                style={{ width: "100%", padding: "8px 12px", background: "#0a0a0a", border: `1px solid ${NEON}44`, color: "#ccc", borderRadius: 8, fontSize: 11, resize: "vertical", outline: "none", boxSizing: "border-box" }} />
+            </div>
+            <button onClick={submit} disabled={submitting || !form.type}
+              style={{ padding: "12px", background: submitting ? "#0a0a0a" : NEON + "22", border: `1px solid ${NEON}`, color: NEON, borderRadius: 8, cursor: !form.type || submitting ? "not-allowed" : "pointer", fontSize: 12, fontWeight: 700, letterSpacing: 1 }}>
+              {submitting ? "SUBMITTING..." : "▶ SUBMIT REPORT"}
+            </button>
+          </div>
+        </GlowBorder>
+        <div style={{ flex: 1, minWidth: 180, display: "flex", flexDirection: "column", gap: 12 }}>
+          <button style={{ padding: "20px", background: RED + "22", border: `2px solid ${RED}`, color: RED, borderRadius: 12, cursor: "pointer", fontSize: 14, fontWeight: 900, letterSpacing: 2, animation: "pulse 1.5s infinite" }}>
+            🚨 SOS EMERGENCY
+          </button>
+          <GlowBorder style={{ padding: 14 }}>
+            <div style={{ fontSize: 10, color: NEON, letterSpacing: 1, marginBottom: 10 }}>LIVE LOCATION</div>
+            <div style={{ fontSize: 11, color: "#888", marginBottom: 6 }}>
+              <span style={{ color: GREEN }}>●</span> GPS Active
+            </div>
+            <div style={{ fontSize: 10, color: "#555" }}>Lat: 13.0827° N</div>
+            <div style={{ fontSize: 10, color: "#555" }}>Lon: 80.2707° E</div>
+            <div style={{ fontSize: 10, color: "#555", marginTop: 4 }}>Nearest: Sector 7</div>
+          </GlowBorder>
+          <GlowBorder style={{ padding: 14 }}>
+            <div style={{ fontSize: 10, color: "#888", lineHeight: 1.6 }}>
+              Emergency dispatchers will respond to your report. All submissions are confidential.
+            </div>
+          </GlowBorder>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DronePage() {
+  const [angle, setAngle] = useState(0);
+  const [target, setTarget] = useState(null);
+  const droneTargets = [
+    { x: 120, y: 80, label: "Suspect S-001", critical: true },
+    { x: 240, y: 150, label: "Sector 12", critical: false },
+    { x: 60, y: 200, label: "Vehicle XR-4421", critical: true },
+    { x: 310, y: 90, label: "Sector 9", critical: false },
+  ];
+  useInterval(() => setAngle(a => (a + 2) % 360), 30);
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <h2 style={{ margin: 0, fontSize: 16, color: NEON, fontFamily: "monospace", letterSpacing: 2 }}>⬖ DRONE SURVEILLANCE MONITOR</h2>
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+        <GlowBorder style={{ flex: 2, minWidth: 300, padding: 16 }}>
+          <div style={{ fontSize: 10, color: NEON, letterSpacing: 1, marginBottom: 12 }}>AERIAL VIEW — NORTH DISTRICT</div>
+          <svg width="100%" viewBox="0 0 400 260" style={{ display: "block" }}>
+            <rect x="0" y="0" width="400" height="260" fill="#020a04" rx="8" />
+            {Array.from({ length: 8 }).map((_, i) => (
+              <line key={`h${i}`} x1={0} y1={i * 37} x2={400} y2={i * 37} stroke={GREEN + "11"} strokeWidth={1} />
+            ))}
+            {Array.from({ length: 12 }).map((_, i) => (
+              <line key={`v${i}`} x1={i * 37} y1={0} x2={i * 37} y2={260} stroke={GREEN + "11"} strokeWidth={1} />
+            ))}
+            {[{x:80,y:60,w:60,h:30},{x:200,y:40,w:80,h:25},{x:310,y:70,w:50,h:35},{x:50,y:160,w:70,h:40},{x:260,y:150,w:90,h:30}].map((b,i)=>(
+              <rect key={i} x={b.x} y={b.y} width={b.w} height={b.h} fill={GREEN+"11"} stroke={GREEN+"33"} rx="2" />
+            ))}
+            <g transform={`translate(200, 130) rotate(${angle})`}>
+              <circle cx={0} cy={0} r={90} fill="none" stroke={GREEN+"22"} strokeWidth={1} strokeDasharray="4 4" />
+              <circle cx={0} cy={0} r={60} fill="none" stroke={GREEN+"22"} strokeWidth={1} strokeDasharray="2 6" />
+              <line x1={0} y1={0} x2={90} y2={0} stroke={GREEN+"66"} strokeWidth={1} />
+              <line x1={0} y1={0} x2={-90} y2={0} stroke={GREEN+"22"} strokeWidth={0.5} />
+              <line x1={0} y1={0} x2={0} y2={90} stroke={GREEN+"22"} strokeWidth={0.5} />
+              <line x1={0} y1={0} x2={0} y2={-90} stroke={GREEN+"22"} strokeWidth={0.5} />
+            </g>
+            {droneTargets.map((t, i) => (
+              <g key={i} onClick={() => setTarget(t)} style={{ cursor: "pointer" }}>
+                <circle cx={t.x} cy={t.y} r={8} fill={t.critical ? RED + "44" : NEON + "33"} stroke={t.critical ? RED : NEON} strokeWidth={1} />
+                <text x={t.x} y={t.y + 18} textAnchor="middle" fill={t.critical ? RED : NEON} fontSize={8}>{t.label}</text>
+              </g>
+            ))}
+            <g transform="translate(200,130)">
+              <polygon points="0,-8 5,4 -5,4" fill={NEON} opacity={0.9} />
+              <circle cx={0} cy={0} r={3} fill={NEON} />
+            </g>
+            <text x={8} y={14} fill={GREEN} fontSize={9} fontFamily="monospace">DRONE-01 | ALT: 120m | SPEED: 42km/h</text>
+          </svg>
+          {target && (
+            <div style={{ marginTop: 10, padding: 10, background: (target.critical ? RED : NEON) + "11", border: `1px solid ${target.critical ? RED : NEON}44`, borderRadius: 8 }}>
+              <div style={{ fontSize: 11, color: target.critical ? RED : NEON, fontWeight: 700 }}>
+                {target.critical ? "⚠ TARGET LOCKED: " : "◈ SCANNING: "}{target.label}
+              </div>
+            </div>
+          )}
+        </GlowBorder>
+        <div style={{ flex: 1, minWidth: 180, display: "flex", flexDirection: "column", gap: 10 }}>
+          <GlowBorder style={{ padding: 14 }}>
+            <div style={{ fontSize: 10, color: GREEN, letterSpacing: 1, marginBottom: 10 }}>DRONE STATUS</div>
+            {[["DRONE-01", "Sector 7", "ACTIVE"], ["DRONE-02", "Sector 9", "ACTIVE"], ["DRONE-03", "Sector 12", "ACTIVE"], ["DRONE-04", "Sector 3", "STANDBY"]].map(([id, loc, status]) => (
+              <div key={id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, fontSize: 10 }}>
+                <span style={{ color: status === "ACTIVE" ? GREEN : "#555" }}>⬖</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ color: "#ccc" }}>{id}</div>
+                  <div style={{ color: "#555" }}>{loc}</div>
+                </div>
+                <Badge level={status === "ACTIVE" ? "LIVE" : "LOW"} />
+              </div>
+            ))}
+          </GlowBorder>
+          <GlowBorder style={{ padding: 14 }}>
+            <div style={{ fontSize: 10, color: AMBER, letterSpacing: 1, marginBottom: 8 }}>TELEMETRY</div>
+            {[["Altitude", "120m"], ["Speed", "42 km/h"], ["Battery", "78%"], ["Range", "2.4 km"], ["Signal", "Strong"]].map(([k, v]) => (
+              <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: 10, marginBottom: 5 }}>
+                <span style={{ color: "#666" }}>{k}</span>
+                <span style={{ color: AMBER, fontFamily: "monospace" }}>{v}</span>
+              </div>
+            ))}
+          </GlowBorder>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LoginPage({ onLogin }) {
+  const [role, setRole] = useState("admin");
+  const [user, setUser] = useState("officer@crimevision.ai");
+  const [pass, setPass] = useState("••••••••");
+  const [logging, setLogging] = useState(false);
+
+  const doLogin = () => {
+    setLogging(true);
+    setTimeout(() => onLogin(role), 1500);
+  };
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#000", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "monospace" }}>
+      <style>{`@keyframes ping{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.3;transform:scale(1.4)}} @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}`}</style>
+      <div style={{ position: "fixed", inset: 0, backgroundImage: `radial-gradient(ellipse at 20% 50%, ${NEON}08 0%, transparent 50%), radial-gradient(ellipse at 80% 20%, ${RED}06 0%, transparent 50%)` }} />
+      <div style={{ position: "relative", width: "100%", maxWidth: 420, padding: 20 }}>
+        <div style={{ textAlign: "center", marginBottom: 32 }}>
+          <div style={{ fontSize: 36, fontWeight: 900, color: NEON, letterSpacing: 4, textShadow: `0 0 30px ${NEON}88` }}>CRIME</div>
+          <div style={{ fontSize: 36, fontWeight: 900, color: RED, letterSpacing: 4, textShadow: `0 0 30px ${RED}88` }}>VISION</div>
+          <div style={{ fontSize: 10, color: "#555", letterSpacing: 3, marginTop: 4 }}>AI SURVEILLANCE INTELLIGENCE SYSTEM v2.1</div>
+        </div>
+        <GlowBorder color={NEON} style={{ padding: 28 }}>
+          <div style={{ fontSize: 11, color: NEON, letterSpacing: 2, marginBottom: 20, textAlign: "center" }}>SYSTEM LOGIN — RESTRICTED ACCESS</div>
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ fontSize: 10, color: "#888", letterSpacing: 1, display: "block", marginBottom: 6 }}>ROLE</label>
+            <select value={role} onChange={e => setRole(e.target.value)}
+              style={{ width: "100%", padding: "10px 12px", background: "#080808", border: `1px solid ${NEON}44`, color: NEON, borderRadius: 8, fontSize: 11 }}>
+              <option value="admin">Police / Admin</option>
+              <option value="analyst">AI Analyst</option>
+              <option value="citizen">Citizen</option>
+            </select>
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ fontSize: 10, color: "#888", letterSpacing: 1, display: "block", marginBottom: 6 }}>USER ID</label>
+            <input value={user} onChange={e => setUser(e.target.value)}
+              style={{ width: "100%", padding: "10px 12px", background: "#080808", border: `1px solid ${NEON}44`, color: "#ccc", borderRadius: 8, fontSize: 11, outline: "none", boxSizing: "border-box" }} />
+          </div>
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ fontSize: 10, color: "#888", letterSpacing: 1, display: "block", marginBottom: 6 }}>PASSWORD</label>
+            <input value={pass} onChange={e => setPass(e.target.value)} type="password"
+              style={{ width: "100%", padding: "10px 12px", background: "#080808", border: `1px solid ${NEON}44`, color: "#ccc", borderRadius: 8, fontSize: 11, outline: "none", boxSizing: "border-box" }} />
+          </div>
+          <button onClick={doLogin} disabled={logging}
+            style={{ width: "100%", padding: "12px", background: logging ? "#0a0a0a" : NEON + "22", border: `1px solid ${NEON}`, color: NEON, borderRadius: 8, cursor: logging ? "not-allowed" : "pointer", fontSize: 12, fontWeight: 700, letterSpacing: 2 }}>
+            {logging ? "AUTHENTICATING..." : "▶ AUTHORIZE ACCESS"}
+          </button>
+        </GlowBorder>
+        <div style={{ textAlign: "center", marginTop: 16, fontSize: 9, color: "#333", letterSpacing: 1 }}>
+          Academic prototype only · All data simulated
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function App() {
+  const [auth, setAuth] = useState(null);
+  const [page, setPage] = useState("dashboard");
+  const [liveCount, setLiveCount] = useState(847);
+  const [notification, setNotification] = useState(null);
+
+  useInterval(() => {
+    setLiveCount(c => c + Math.floor(Math.random() * 3));
+    if (Math.random() > 0.7) {
+      const msgs = ["Suspicious movement — Sector 7", "New SOS received", "AI threat detected"];
+      setNotification(msgs[Math.floor(Math.random() * msgs.length)]);
+      setTimeout(() => setNotification(null), 4000);
+    }
+  }, 4000);
+
+  if (!auth) return <LoginPage onLogin={setAuth} />;
+
+  const pageMap = {
+    dashboard: <DashboardPage liveCount={liveCount} />,
+    heatmap: <HeatmapPage />,
+    ai: <AIPredictionPage />,
+    cctv: <CctvPage />,
+    suspects: <SuspectsPage />,
+    facial: <FacialPage />,
+    analytics: <AnalyticsPage />,
+    alerts: <AlertsPage />,
+    report: <ReportPage />,
+    drone: <DronePage />,
+  };
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#000", color: "#ccc", fontFamily: "'Courier New', monospace", display: "flex", flexDirection: "column" }}>
+      <style>{`
+        @keyframes ping { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.3;transform:scale(1.5)} }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+        * { box-sizing: border-box; }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: #000; }
+        ::-webkit-scrollbar-thumb { background: #00f0ff22; border-radius: 2px; }
+        select option { background: #0a0a0a; }
+      `}</style>
+
+      <div style={{ height: 48, background: "rgba(0,0,0,0.97)", borderBottom: `1px solid ${NEON}22`, display: "flex", alignItems: "center", paddingLeft: 20, paddingRight: 20, gap: 16, flexShrink: 0, zIndex: 10 }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <PulseRing color={NEON} size={10} />
+          <span style={{ fontSize: 11, color: NEON, fontWeight: 700, letterSpacing: 2 }}>SYSTEM ONLINE</span>
+        </div>
+        <div style={{ flex: 1 }} />
+        {notification && (
+          <div style={{ padding: "4px 12px", background: RED + "22", border: `1px solid ${RED}66`, borderRadius: 6, fontSize: 10, color: RED, animation: "pulse 0.5s ease" }}>
+            ⚠ {notification}
+          </div>
+        )}
+        <div style={{ fontSize: 10, color: "#555", letterSpacing: 1 }}>{auth.toUpperCase()} ACCESS</div>
+        <button onClick={() => setAuth(null)} style={{ padding: "4px 10px", background: "transparent", border: `1px solid #333`, color: "#555", borderRadius: 6, cursor: "pointer", fontSize: 10 }}>LOGOUT</button>
+      </div>
+
+      <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+        <Sidebar page={page} setPage={setPage} role={auth} />
+        <main style={{ flex: 1, overflowY: "auto", padding: 20, background: "radial-gradient(ellipse at top left, #030a03 0%, #000 60%)" }}>
+          {pageMap[page] || <DashboardPage liveCount={liveCount} />}
+        </main>
+      </div>
+
+      <div style={{ textAlign: "center", padding: "8px", borderTop: `1px solid ${NEON}11`, fontSize: 9, color: "#333", letterSpacing: 1 }}>
+        This project is developed for academic and educational purposes only. All data shown is simulated.
+      </div>
+    </div>
+  );
+}
